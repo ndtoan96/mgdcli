@@ -1,0 +1,2 @@
+# mgdcli
+Mangadex download tool
