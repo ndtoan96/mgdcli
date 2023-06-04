@@ -67,11 +67,16 @@ async fn main() -> anyhow::Result<()> {
 
     let args = Arguments::parse();
 
-    let query = if args.manga.contains("mangadex.org") {
+    let mut query = if args.manga.contains("mangadex.org") {
         MangaQuery::from_url(&args.manga)?
     } else {
         MangaQuery::new(&args.manga)
     };
+
+    query = query.language(&args.language);
+    for group in &args.groups {
+        query = query.group(group);
+    }
 
     let manga_volumes = query.execute().await?;
 
