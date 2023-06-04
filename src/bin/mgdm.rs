@@ -2,7 +2,6 @@ use std::{path::PathBuf, time::Duration};
 
 use clap::{ArgAction, Args, Parser};
 use mangadex::{ChapterDownloadRequest, ChapterDownloader, GetChapters, MangaQuery, Volume};
-use tokio::time::sleep;
 use tower::{Service, ServiceBuilder, ServiceExt};
 
 #[derive(Debug, Parser)]
@@ -115,6 +114,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let mut download_service = ServiceBuilder::new()
+        .rate_limit(4, Duration::from_secs(1))
         .rate_limit(35, Duration::from_secs(60))
         .service(ChapterDownloader);
 
@@ -122,7 +122,8 @@ async fn main() -> anyhow::Result<()> {
         .last()
         .and_then(|c| c.chapter().as_ref())
         .map(|&c| c.log10().floor() as usize)
-        .unwrap_or(0) + 1;
+        .unwrap_or(0)
+        + 1;
 
     for chapter in chapters {
         let chapter_name = match chapter.chapter() {
@@ -132,7 +133,7 @@ async fn main() -> anyhow::Result<()> {
 
         println!("Download {chapter_name}");
 
-        if let Err(e) = download_service
+        download_service
             .ready()
             .await?
             .call(
@@ -140,23 +141,7 @@ async fn main() -> anyhow::Result<()> {
                     .data_saver(args.data_saver)
                     .path(args.path.join(&chapter_name)),
             )
-            .await
-        {
-            // if error, wait for 1 minutes and retry
-            println!("{e}");
-            println!("Waiting for 1 minute...");
-            sleep(Duration::from_secs(60)).await;
-            println!("Retry");
-            download_service
-                .ready()
-                .await?
-                .call(
-                    ChapterDownloadRequest::new(chapter.id())
-                        .data_saver(args.data_saver)
-                        .path(args.path.join(&chapter_name)),
-                )
-                .await?;
-        }
+            .await?;
     }
 
     Ok(())
