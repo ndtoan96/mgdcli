@@ -144,7 +144,7 @@ async fn download_chapter(
     for (i, x) in pages {
         let url = format!(
             "{}/{}/{}/{}",
-            chapter.base_url, chapter.chapter.hash, quality, x
+            chapter.base_url, quality, chapter.chapter.hash, x
         );
         let ext = if x.contains(".png") { ".png" } else { ".jpg" };
         futures.push(download_one(
