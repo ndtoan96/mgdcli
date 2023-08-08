@@ -1,7 +1,12 @@
+use std::fs;
+use std::io::Read;
+use std::io::Write;
 use std::{path::PathBuf, time::Duration};
+use zip::{write::FileOptions, ZipWriter};
 
 use clap::{ArgAction, Args, Parser};
 use mangadex::{ChapterDownloadRequest, ChapterDownloader, GetChapters, MangaQuery, Volume};
+use std::path::Path;
 use tower::{Service, ServiceBuilder, ServiceExt};
 
 #[derive(Debug, Parser)]
@@ -36,6 +41,8 @@ struct Arguments {
         help = "download uncompressed images"
     )]
     data_saver: bool,
+    #[arg(long, help = "make cbz file")]
+    make_cbz: bool,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -129,6 +136,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or(0)
         + 1;
 
+    let mut downloaded_paths = Vec::new();
     for chapter in chapters {
         let chapter_name = match chapter.chapter() {
             Some(c) => format!("chapter_{c:0width$}", width = width),
@@ -137,15 +145,76 @@ async fn main() -> anyhow::Result<()> {
 
         println!("Download {chapter_name}");
 
+        let download_path = args.path.join(&chapter_name);
         download_service
             .ready()
             .await?
             .call(
                 ChapterDownloadRequest::new(chapter.id())
                     .data_saver(args.data_saver)
-                    .path(args.path.join(&chapter_name)),
+                    .path(args.path.join(&download_path)),
             )
             .await?;
+        downloaded_paths.push(download_path);
+    }
+
+    if args.make_cbz {
+        println!("Making cbz file...");
+        make_cbz(downloaded_paths)?;
+        println!("Done.");
+    }
+
+    Ok(())
+}
+
+fn make_cbz<T1, T2>(paths: T1) -> Result<(), std::io::Error>
+where
+    T1: IntoIterator<Item = T2>,
+    T2: AsRef<Path>,
+{
+    let mut new_names = Vec::new();
+    let mut parent = None;
+    for (i, path) in paths.into_iter().enumerate() {
+        let path = path.as_ref();
+        parent = Some(path.parent().unwrap_or(Path::new(".")).to_path_buf());
+        let current_name = path.file_name().unwrap();
+        let new_name = format!("{:05}_{}", i, current_name.to_string_lossy());
+        let new_path = path.with_file_name(&new_name);
+        fs::rename(path, &new_path)?;
+        new_names.push(new_name);
+    }
+
+    if new_names.is_empty() {
+        return Ok(());
+    }
+
+    let parent = parent.unwrap();
+
+    // zip all folder and create cbz file
+    let file = fs::File::create(parent.join("manga.cbz"))?;
+    let mut writer = ZipWriter::new(file);
+    let mut buf = Vec::new();
+    for name in new_names.iter() {
+        // writer.add_directory(name, FileOptions::default())?;
+        for entry in fs::read_dir(parent.join(name))? {
+            let file_path = entry?.path();
+            if file_path.is_file() {
+                writer.start_file(
+                    format!(
+                        "{}/{}",
+                        name,
+                        file_path.file_name().unwrap().to_string_lossy()
+                    ),
+                    FileOptions::default(),
+                )?;
+
+                fs::File::open(file_path)?.read_to_end(&mut buf)?;
+                writer.write_all(&buf)?;
+                buf.clear();
+            }
+        }
+        // The folder has been added to cbz, delete it
+        let _ = fs::remove_dir_all(parent.join(name));
     }
 
     Ok(())

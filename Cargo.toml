@@ -2,7 +2,7 @@
 name = "mangadex"
 authors = ["Nguyen Duc Toan <ntoan96@gmail.com>"]
 description = "Client of mangadex API"
-version = "0.7.3"
+version = "0.8.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -21,6 +21,7 @@ tokio = { version = "1.28.2", features = ["rt-multi-thread", "macros"] }
 tower = { version = "0.4.13", features = ["limit", "util"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"
+zip = "0.6.6"
 
 [dev-dependencies]
 tempfile = "3.5.0"
