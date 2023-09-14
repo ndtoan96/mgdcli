@@ -126,7 +126,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let mut download_service = ServiceBuilder::new()
-        .rate_limit(3, Duration::from_secs(6))
+        .rate_limit(1, Duration::from_secs(2))
         .service(ChapterDownloader);
 
     let width = chapters
