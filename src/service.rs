@@ -39,13 +39,16 @@ struct ChapterDownloadData {
 
 impl ChapterData {
     pub async fn new(id: &str) -> Result<Self, MangadexError> {
-        Ok(serde_json::from_slice(
-            &reqwest::get(format!("https://api.mangadex.org/at-home/server/{id}"))
-                .await?
-                .error_for_status()?
-                .bytes()
-                .await?,
-        )?)
+        let bytes = reqwest::Client::builder()
+            .user_agent("mdgcli")
+            .build()?
+            .get(format!("https://api.mangadex.org/at-home/server/{id}"))
+            .send()
+            .await?
+            .error_for_status()?
+            .bytes()
+            .await?;
+        Ok(serde_json::from_slice(&bytes)?)
     }
 }
 

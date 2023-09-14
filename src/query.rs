@@ -110,7 +110,9 @@ impl MangaQuery {
             query.push(("translatedLanguage[]", language));
         }
 
-        let bytes = reqwest::Client::new()
+        let bytes = reqwest::Client::builder()
+            .user_agent("mgdcli")
+            .build()?
             .get(format!(
                 "https://api.mangadex.org/manga/{}/aggregate",
                 self.id
