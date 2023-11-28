@@ -152,7 +152,7 @@ async fn main() -> anyhow::Result<()> {
             .call(
                 ChapterDownloadRequest::new(chapter.id())
                     .data_saver(args.data_saver)
-                    .path(args.path.join(&download_path)),
+                    .path(&download_path),
             )
             .await?;
         downloaded_paths.push(download_path);
