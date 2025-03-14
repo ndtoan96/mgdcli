@@ -129,7 +129,16 @@ async fn download_chapter(
 ) -> Result<(), MangadexError> {
     async fn download_one(url: String, file: PathBuf) -> Result<(), MangadexError> {
         debug!("Download {}", file.display());
-        let bytes = reqwest::get(url).await?.bytes().await?;
+        let bytes = reqwest::ClientBuilder::new()
+            .user_agent("mdgcli")
+            .build()
+            .unwrap()
+            .get(url)
+            .send()
+            .await?
+            .error_for_status()?
+            .bytes()
+            .await?;
         fs::write(file, &bytes)?;
         Ok(())
     }
